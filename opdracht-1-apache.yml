@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for creating VPC with EC2 instance running Apache web server
+
+Parameters:
+  VpcCIDR:
+    Description: CIDR block for the VPC
+    Type: String
+    Default: "10.0.0.0/16"
+  Subnet1CIDR:
+    Description: CIDR block for Subnet 1
+    Type: String
+    Default: "10.0.1.0/24"
+  Subnet2CIDR:
+    Description: CIDR block for Subnet 2
+    Type: String
+    Default: "10.0.2.0/24"
+  Subnet3CIDR:
+    Description: CIDR block for Subnet 3
+    Type: String
+    Default: "10.0.3.0/24"
+  KeyName:
+    Description: Name of the EC2 Key Pair
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: ErwinR-opdrachten
+
+Resources:
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+        - Key: Name
+          Value: PublicSubnet1
+      VpcId: !Ref MyVPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Ref Subnet1CIDR
+      MapPublicIpOnLaunch: true
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+        - Key: Name
+          Value: PublicSubnet2
+      VpcId: !Ref MyVPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Ref Subnet2CIDR
+      MapPublicIpOnLaunch: true
+
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+        - Key: Name
+          Value: PublicSubnet3
+      VpcId: !Ref MyVPC
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      CidrBlock: !Ref Subnet3CIDR
+      MapPublicIpOnLaunch: true
+
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH and HTTP access
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  MyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      IamInstanceProfile: AdminRoleForEC2
+      ImageId: ami-0843a4d6dc2130849
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+      SubnetId: !Ref PublicSubnet1
+      KeyName: !Ref KeyName
+      Tags: 
+        - Key: Name
+          Value: Opdracht1
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          mkdir /var/www/html/erwin
+          echo "<html><body><h>Hello Conclusion Xforce</h></body></html>" > /var/www/html/erwin/index.html
+          systemctl start httpd
+          systemctl enable httpd
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Subnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  Subnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  Subnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet3
+      RouteTableId: !Ref PublicRouteTable
+
+## Adding Cloudwatch
+  Cloudwatch:
+    Type: AWS::Cloudwatch::
