@@ -100,14 +100,34 @@ Resources:
         - Key: Name
           Value: Opdracht1
       UserData:
-        Fn::Base64: |
-          #!/bin/bash
-          yum update -y
-          yum install -y httpd
-          mkdir /var/www/html/erwin
-          echo "<html><body><h>Hello Conclusion Xforce</h></body></html>" > /var/www/html/erwin/index.html
-          systemctl start httpd
-          systemctl enable httpd
+        Fn::Base64: 
+          !Sub |
+          #!/bin/bash -xe
+          # Get the latest CloudFormation package
+          dnf update -y aws-cfn-bootstrap
+          # Start cfn-init
+          /opt/aws/bin/cfn-init -s ${AWS::StackId} -r MyInstance --region ${AWS::Region} || error_exit 'Failed to run cfn-init'
+    Metadata:
+      Comment: install Apache HTTP
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              httpd: []
+          files:
+            "/var/www/html/index.html":
+              content: |
+                <html><body><h1>Hello Conclusion Xforce</h1>
+                <p> Created with cfn-init</p></body></html>
+              mode: '000644'
+          commands:
+            hello:
+              command: "echo 'hello world'"
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -140,6 +160,3 @@ Resources:
       SubnetId: !Ref PublicSubnet3
       RouteTableId: !Ref PublicRouteTable
 
-## Adding Cloudwatch
-  Cloudwatch:
-    Type: AWS::Cloudwatch::
