@@ -1,8 +1,3 @@
-To implement the solution for containers, we will use Amazon Elastic Container Service (ECS) to run Apache in a container. We'll configure the container to send logs to CloudWatch Logs. Additionally, we'll ensure that autoscaling behind the load balancer works as before.
-
-Here's the updated CloudFormation template:
-
-```yaml
 AWSTemplateFormatVersion: '2010-09-09'
 
 Resources:
@@ -172,22 +167,3 @@ Resources:
 Outputs:
   LoadBalancerDNS:
     Value: !GetAtt LoadBalancer.DNSName
-```
-
-### To ask:
-
-1. **Which container services do you know in AWS? When do you use which service?**
-   - **Amazon Elastic Container Service (ECS)**: It's a fully managed container orchestration service. You can use ECS to run, stop, and manage
-
- Docker containers on a cluster.
-   - **Amazon Elastic Kubernetes Service (EKS)**: It's a managed Kubernetes service. You can use EKS to run Kubernetes on AWS without needing to install, operate, and maintain your own Kubernetes control plane or nodes.
-   - **AWS Fargate**: It's a serverless compute engine for containers. With Fargate, you don't need to provision, configure, or scale clusters of virtual machines to run containers.
-
-   **When to use which service?**
-   - **ECS**: It's a good choice when you want a simple and scalable way to run containers. It's well integrated with other AWS services.
-   - **EKS**: It's suitable when you need more control over Kubernetes or have existing investments in Kubernetes.
-   - **Fargate**: It's the best choice when you want to run containers without managing the underlying infrastructure.
-
-2. **Which AWS service do you use to ensure that images you add via one container are also visible in another container?**
-
-   You can use Amazon Elastic Container Registry (ECR) to store, manage, and deploy Docker container images. By pushing your container images to ECR, you can ensure that they are accessible to ECS, EKS, and other container services within AWS.
