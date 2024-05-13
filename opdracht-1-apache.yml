@@ -96,11 +96,11 @@ Resources:
         - !Ref MySecurityGroup
       SubnetId: !Ref PublicSubnet1
       KeyName: !Ref KeyName
-      Tags: 
+      Tags:
         - Key: Name
           Value: Opdracht1
       UserData:
-        Fn::Base64: 
+        Fn::Base64:
           !Sub |
           #!/bin/bash -xe
           # Get the latest CloudFormation package
@@ -114,20 +114,27 @@ Resources:
           packages:
             yum:
               httpd: []
+              amazon-cloudwatch-agent: []
           files:
             "/var/www/html/index.html":
               content: |
                 <html><body><h1>Hello Conclusion Xforce</h1>
                 <p> Created with cfn-init</p></body></html>
               mode: '000644'
+            "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json"
+              content: |
+                
           commands:
             hello:
               command: "echo 'hello world'"
           services:
             sysvinit:
               httpd:
-                enabled: 'true'
-                ensureRunning: 'true'
+                enabled: true
+                ensureRunning: true
+              amazon-cloudwatch-agent:
+                enabled: true
+                ensureRunning: true
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable

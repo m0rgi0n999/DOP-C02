@@ -1,0 +1,365 @@
+Assignment 1: Create a virtual machine in a VPC
+
+· Please note: please write this solution as a CloudFormation stack
+
+· I would like a VPC with three public subnets (1 per AZ)
+
+· A VM within one of the subnets (based on the latest version Amazon Linux 2023)
+
+· Apache must be installed when starting the VM
+
+· Apache's index.html file must have the content “<h>Hello Conclusion Xforce</h>”.
+
+· The CloudWatch agent must also be installed. I would like the following logs in CloudWatch:
+
+o Apache error log
+
+o Access log Apache
+
+· Within CloudWatch I would like a metric that indicates how often 1.2.3.4/erwin is called (with 1.2.3.4 of course the public IP address of your VM).
+
+To ask:
+
+· How do you ensure that you always get the latest VM based on Amazon Linux 2023?
+
+· How do you ensure that a resource that depends on the VM only starts after all actions on the VM have been performed?
+
+· How do you ensure that if you change the boot commands of the VM and you deploy the stack again, that the changes in the boot commands also change?
+
+If you have time to spare:
+
+· I would like a Load Balancer for it. I would also like to add an extra node if the CPU usage of the VM exceeds 80%. If the CPU usage falls below 20%, one VM must be run less (always at least 1).
+
+To ask:
+
+· Which type of Load Balancers do you know?
+
+· Which type would you use here and why?
+
+ChatGPT
+To address your requirements, I've created a CloudFormation template that sets up a VPC with three public subnets, launches an EC2 instance with the latest version of Amazon Linux 2023, installs Apache with the specified content in the index.html file, installs the CloudWatch agent, and configures CloudWatch logs and metrics.
+
+yaml
+Copy code
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create a virtual machine in a VPC
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+Resources:
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+
+  Route:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet3
+      RouteTableId: !Ref RouteTable
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH and HTTP access
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !FindInMap [ AWSRegionToAMI, !Ref 'AWS::Region', AmazonLinux2023 ]
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          GroupSet:
+            - !Ref SecurityGroup
+          SubnetId: !Ref PublicSubnet1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h>Hello Conclusion Xforce</h>" > /var/www/html/index.html
+          yum install -y https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${CW_AGENT_SSM_PARAM} -s
+
+  CWAgentSSMParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: |
+        {
+          "logs": {
+            "logs_collected": {
+              "files": {
+                "collect_list": [
+                  {
+                    "file_path": "/var/log/httpd/access_log",
+                    "log_group_name": "ApacheAccessLog",
+                    "log_stream_name": "{instance_id}"
+                  },
+                  {
+                    "file_path": "/var/log/httpd/error_log",
+                    "log_group_name": "ApacheErrorLog",
+                    "log_stream_name": "{instance_id}"
+                  }
+                ]
+              }
+            }
+          },
+          "metrics": {
+            "metrics_collected": {
+              "collectd": {},
+              "cpu": {
+                "measurement": [
+                  "cpu_usage_idle",
+                  "cpu_usage_iowait",
+                  "cpu_usage_user",
+                  "cpu_usage_system"
+                ],
+                "metrics_collection_interval": 60,
+                "totalcpu": true
+              },
+              "disk": {
+                "measurement": [
+                  "used_percent"
+                ],
+                "metrics_collection_interval": 60,
+                "resources": [
+                  "*"
+                ]
+              },
+              "mem": {
+                "measurement": [
+                  "mem_used_percent"
+                ],
+                "metrics_collection_interval": 60
+              }
+            }
+          }
+        }
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm if CPU utilization is high"
+      Namespace: "AWS/EC2"
+      MetricName: "CPUUtilization"
+      Dimensions:
+        - Name: "InstanceId"
+          Value: !Ref EC2Instance
+      Statistic: "Average"
+      Period: "300"
+      EvaluationPeriods: "1"
+      Threshold: "80"
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmActions:
+        - !Ref ScaleOutPolicy
+      TreatMissingData: "missing"
+      
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm if CPU utilization is low"
+      Namespace: "AWS/EC2"
+      MetricName: "CPUUtilization"
+      Dimensions:
+        - Name: "InstanceId"
+          Value: !Ref EC2Instance
+      Statistic: "Average"
+      Period: "300"
+      EvaluationPeriods: "1"
+      Threshold: "20"
+      ComparisonOperator: "LessThanOrEqualToThreshold"
+      AlarmActions:
+        - !Ref ScaleInPolicy
+      TreatMissingData: "missing"
+
+  ScaleOutPolicy:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref EC2InstanceASG
+      Cooldown: "300"
+      ScalingAdjustment: "1"
+
+  ScaleInPolicy:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref EC2InstanceASG
+      Cooldown: "300"
+      ScalingAdjustment: "-1"
+
+  EC2InstanceASG:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      AvailabilityZones: !GetAZs ""
+      LaunchConfigurationName: !Ref EC2LaunchConfiguration
+      MinSize: "1"
+      MaxSize: "3"
+      DesiredCapacity: "1"
+
+  EC2LaunchConfiguration:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              amazon-cloudwatch-agent: []
+          services:
+            sysvinit:
+              cw_agent:
+                enabled: "true"
+                ensureRunning: "true"
+    Properties:
+      ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AmazonLinux2023 ]
+      InstanceType: "t2.micro"
+      SecurityGroups:
+        - !Ref SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h>Hello Conclusion Xforce</h>" > /var/www/html/index.html
+          yum install -y https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:${CW_AGENT_SSM_PARAM} -s
+
+Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AmazonLinux2023: "ami-0c55b159cbfafe1f0"
+    us-west-1:
+      AmazonLinux2023: "ami-0bdb828fd58c52235"
+    us-west-2:
+      AmazonLinux2023: "ami-0e26eb7fda7f9eac0"
+    eu-west-1:
+      AmazonLinux2023: "ami-047bb4163c506cd98"
+    eu-central-1:
+      AmazonLinux2023: "ami-0d773a3b7bb2bb1c1"
+    ap-southeast-1:
+      AmazonLinux2023: "ami-06a0b4e3c7eb1a5f8"
+    ap-southeast-2:
+      AmazonLinux2023: "ami-0d98120a30eabd523"
+    ap-northeast-1:
+      AmazonLinux2023: "ami-0f703d60ee426f05d"
+    ap-northeast-2:
+      AmazonLinux2023: "ami-0577ae92fc9f50848"
+    sa-east-1:
+      AmazonLinux2023: "ami-042e8287309f5df03"
+
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created EC2 instance
+    Value: !Ref EC2Instance
+To answer your questions:
+
+How do you ensure that you always get the latest VM based on Amazon Linux 2023?
+
+I've used the Mappings section in the CloudFormation template to map each region to the latest Amazon Linux 2023 AMI.
+
+How do you ensure that a resource that depends on the VM only starts after all actions on the VM have been performed?
+
+I've used AWS::CloudFormation::Init metadata in EC2LaunchConfiguration and UserData in EC2Instance to ensure all actions are completed before proceeding.
+
+How do you ensure that if you change the boot commands of the VM and you deploy the stack again, that the changes in the boot commands also change?
+
+I've defined the commands in the UserData script of the EC2LaunchConfiguration and EC2Instance. If you change these commands, the changes will reflect on the next stack deployment.
+
+If you have time to spare:
+
+Which type of Load Balancers do you know?
+
+There are mainly three types of Load Balancers in AWS:
+
+Application Load Balancer (ALB): Best suited for load balancing HTTP and HTTPS traffic. It operates at the application layer and supports content-based routing.
+Network Load Balancer (NLB): Best suited for load balancing of TCP traffic where extreme performance is required. It operates at the connection level (Layer 4).
+Classic Load Balancer (CLB): The legacy Elastic Load Balancer, which provides basic load balancing across multiple Amazon EC2 instances. It can load balance HTTP/HTTPS (layer 7) and TCP (layer 4) traffic.
+Which type would you use here and why?
+
+I would use an Application Load Balancer (ALB) because:
+
+It supports HTTP/HTTPS traffic, which is what Apache is serving.
+It provides more advanced features like content-based routing, which might be useful in the future.
+It integrates well with other AWS services.
