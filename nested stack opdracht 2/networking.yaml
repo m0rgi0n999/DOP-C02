@@ -5,15 +5,19 @@ Parameters:
   VpcCIDR:
     Description: CIDR block for the VPC
     Type: String
+    Default: "10.0.0.0/16"
   Subnet1CIDR:
     Description: CIDR block for Subnet 1
     Type: String
+    Default: "10.0.1.0/24"
   Subnet2CIDR:
     Description: CIDR block for Subnet 2
     Type: String
+    Default: "10.0.2.0/24"
   Subnet3CIDR:
     Description: CIDR block for Subnet 3
     Type: String
+    Default: "10.0.3.0/24"
 
 Resources:
   MyVPC:
@@ -75,6 +79,26 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
+
+# added to test connectivity issues
+
+  Subnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  Subne21RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+  
+  Subnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet3
+      RouteTableId: !Ref PublicRouteTable
 
 Outputs:
   VpcId:

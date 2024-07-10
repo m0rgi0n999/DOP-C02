@@ -138,3 +138,25 @@ Resources:
                         "metrics_collection_interval": 60,
                         "resources": [
                           "*"
+                        ]
+                      },
+                      "mem": {
+                        "measurement": [
+                          "mem_used_percent"
+                        ],
+                        "metrics_collection_interval": 60
+                      }
+                    }
+                  }
+                }
+          commands:
+            hello:
+              command: "echo 'hello world'"
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+              amazon-cloudwatch-agent:
+                enabled: 'true'
+                ensureRunning: 'true'
