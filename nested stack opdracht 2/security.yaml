@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Nested stack for security resources
+
+Parameters:
+  VpcId:
+    Description: VPC ID from networking stack
+    Type: String
+
+Resources:
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH and HTTP access
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  SecurityAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: SecurityAlerts
+      Subscription:
+        - Endpoint: erwin.rijvers@conclusionxforce.nl
+          Protocol: email
+
+  CloudPlatformTeamAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: CloudPlatformTeamAlerts
+      Subscription:
+        - Endpoint: erwin.rijvers@conclusionxforce.nl
+          Protocol: email
+
+Outputs:
+  MySecurityGroup:
+    Description: Security Group ID
+    Value: !Ref MySecurityGroup
+  SecurityAlertsTopicARN:
+    Description: ARN of the Security SNS topic created
+    Value: !Ref SecurityAlertsTopic
+  CloudPlatformTeamAlertsTopicARN:
+    Description: ARN of the Cloud Platforms SNS topic created
+    Value: !Ref CloudPlatformTeamAlertsTopic

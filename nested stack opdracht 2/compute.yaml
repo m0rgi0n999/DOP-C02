@@ -1,91 +1,36 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template for creating VPC with EC2 instance running Apache web server
+Description: Nested stack for compute resources
 
 Parameters:
-  VpcCIDR:
-    Description: CIDR block for the VPC
-    Type: String
-    Default: "10.0.0.0/16"
-  Subnet1CIDR:
-    Description: CIDR block for Subnet 1
-    Type: String
-    Default: "10.0.1.0/24"
-  Subnet2CIDR:
-    Description: CIDR block for Subnet 2
-    Type: String
-    Default: "10.0.2.0/24"
-  Subnet3CIDR:
-    Description: CIDR block for Subnet 3
-    Type: String
-    Default: "10.0.3.0/24"
   KeyName:
     Description: Name of the EC2 Key Pair
     Type: AWS::EC2::KeyPair::KeyName
-    Default: ErwinR-opdrachten
+  InstanceType:
+    Description: EC2 Instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+    ConstraintDescription: Valid EC2 instance types.
+  VpcId:
+    Description: The VPC ID
+    Type: String
+  PublicSubnet1:
+    Description: The public subnet ID
+    Type: String
+  MySecurityGroup:
+    Description: The security group ID
+    Type: String
+  SecurityAlertsTopicARN:
+    Description: The ARN of the Security Alerts SNS topic
+    Type: String
+  CloudPlatformTeamAlertsTopicARN:
+    Description: The ARN of the Cloud Platforms SNS topic
+    Type: String
 
 Resources:
-  MyVPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: !Ref VpcCIDR
-
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-
-  AttachGateway:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref MyVPC
-      InternetGatewayId: !Ref InternetGateway
-
-  PublicSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      Tags:
-        - Key: Name
-          Value: PublicSubnet1
-      VpcId: !Ref MyVPC
-      AvailabilityZone: !Select [0, !GetAZs ""]
-      CidrBlock: !Ref Subnet1CIDR
-      MapPublicIpOnLaunch: true
-
-  PublicSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      Tags:
-        - Key: Name
-          Value: PublicSubnet2
-      VpcId: !Ref MyVPC
-      AvailabilityZone: !Select [1, !GetAZs ""]
-      CidrBlock: !Ref Subnet2CIDR
-      MapPublicIpOnLaunch: true
-
-  PublicSubnet3:
-    Type: AWS::EC2::Subnet
-    Properties:
-      Tags:
-        - Key: Name
-          Value: PublicSubnet3
-      VpcId: !Ref MyVPC
-      AvailabilityZone: !Select [2, !GetAZs ""]
-      CidrBlock: !Ref Subnet3CIDR
-      MapPublicIpOnLaunch: true
-
-  MySecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Enable SSH and HTTP access
-      VpcId: !Ref MyVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -118,22 +63,23 @@ Resources:
   MyInstance:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t2.micro
+      InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref InstanceProfile
-      ImageId: ami-0843a4d6dc2130849
+      ImageId:
+        Fn::Sub: "{{resolve:ssm:/my-ami/ami-0551ce4d67096d606}}"
       SecurityGroupIds:
         - !Ref MySecurityGroup
       SubnetId: !Ref PublicSubnet1
       KeyName: !Ref KeyName
       Tags:
         - Key: Name
-          Value: Opdracht1
+          Value: Opdracht2
       UserData:
         Fn::Base64:
           !Sub |
             #!/bin/bash -xe
             # Get the latest CloudFormation package
-            dnf update -y aws-cfn-bootstrap
+            yum update -y aws-cfn-bootstrap
             # Start cfn-init
             /opt/aws/bin/cfn-init -s ${AWS::StackId} -r MyInstance --region ${AWS::Region} || error_exit 'Failed to run cfn-init'
     Metadata:
@@ -192,57 +138,3 @@ Resources:
                         "metrics_collection_interval": 60,
                         "resources": [
                           "*"
-                        ]
-                      },
-                      "mem": {
-                        "measurement": [
-                          "mem_used_percent"
-                        ],
-                        "metrics_collection_interval": 60
-                      }
-                    }
-                  }
-                }
-          commands:
-            hello:
-              command: "echo 'hello world'"
-          services:
-            sysvinit:
-              httpd:
-                enabled: true
-                ensureRunning: true
-              amazon-cloudwatch-agent:
-                enabled: true
-                ensureRunning: true
-
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref MyVPC
-
-  PublicRoute:
-    Type: AWS::EC2::Route
-    DependsOn: AttachGateway
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-
-  Subnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref PublicRouteTable
-
-  Subnet2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref PublicRouteTable
-
-  Subnet3RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet3
-      RouteTableId: !Ref PublicRouteTable
-

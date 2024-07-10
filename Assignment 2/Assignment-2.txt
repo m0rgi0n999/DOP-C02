@@ -10,7 +10,7 @@ Assignment 2) Respond to logs
 
 · Now that we know the hacker's IP address, we can also tackle the hacker. Make sure that people with this specific IP address no longer enter our site.
 
-Ask:
+Questions:
 
 · There are at least 3 solutions for the last question (depending on which resources you deployed in assignment 1). What solutions do you know?
 

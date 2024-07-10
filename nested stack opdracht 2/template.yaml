@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for creating VPC with EC2 instance running Apache web server
+
+Parameters:
+  VpcCIDR:
+    Description: CIDR block for the VPC
+    Type: String
+    Default: "10.0.0.0/16"
+  Subnet1CIDR:
+    Description: CIDR block for Subnet 1
+    Type: String
+    Default: "10.0.1.0/24"
+  Subnet2CIDR:
+    Description: CIDR block for Subnet 2
+    Type: String
+    Default: "10.0.2.0/24"
+  Subnet3CIDR:
+    Description: CIDR block for Subnet 3
+    Type: String
+    Default: "10.0.3.0/24"
+  KeyName:
+    Description: Name of the EC2 Key Pair
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: ErwinR-opdrachten
+  InstanceType:
+    Description: EC2 Instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+    ConstraintDescription: Valid EC2 instance types.
+
+Resources:
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://dop-c02-erwin.s3.eu-west-1.amazonaws.com/networking.yaml
+      Parameters:
+        VpcCIDR: !Ref VpcCIDR
+        Subnet1CIDR: !Ref Subnet1CIDR
+        Subnet2CIDR: !Ref Subnet2CIDR
+        Subnet3CIDR: !Ref Subnet3CIDR
+
+  SecurityStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://dop-c02-erwin.s3.eu-west-1.amazonaws.com/security.yaml
+      Parameters:
+        VpcId: !GetAtt VpcStack.Outputs.VpcId
+    DependsOn: VpcStack
+
+  ComputeStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://dop-c02-erwin.s3.eu-west-1.amazonaws.com/compute.yaml
+      Parameters:
+        KeyName: !Ref KeyName
+        InstanceType: !Ref InstanceType
+        VpcId: !GetAtt VpcStack.Outputs.VpcId
+        PublicSubnet1: !GetAtt VpcStack.Outputs.PublicSubnet1
+        MySecurityGroup: !GetAtt SecurityStack.Outputs.MySecurityGroup
+        SecurityAlertsTopicARN: !GetAtt SecurityStack.Outputs.SecurityAlertsTopicARN
+        CloudPlatformTeamAlertsTopicARN: !GetAtt SecurityStack.Outputs.CloudPlatformTeamAlertsTopicARN
+    DependsOn: SecurityStack
+
+  MonitoringStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://dop-c02-erwin.s3.eu-west-1.amazonaws.com/monitoring.yaml
+      Parameters:
+        SecurityAlertsTopicARN: !GetAtt SecurityStack.Outputs.SecurityAlertsTopicARN
+        CloudPlatformTeamAlertsTopicARN: !GetAtt SecurityStack.Outputs.CloudPlatformTeamAlertsTopicARN
+    DependsOn: ComputeStack

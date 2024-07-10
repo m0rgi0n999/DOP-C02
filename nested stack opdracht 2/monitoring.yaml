@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Nested stack for monitoring resources
+
+Parameters:
+  SecurityAlertsTopicARN:
+    Description: The ARN of the Security Alerts SNS topic
+    Type: String
+  CloudPlatformTeamAlertsTopicARN:
+    Description: The ARN of the Cloud Platforms SNS topic
+    Type: String
+
+Resources:
+  ApacheAcccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+         LogGroupName: "ApacheAccessLog"
+
+  LowSeverityMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: ApacheAccessLog
+      FilterPattern: "[ip, identity, user_id, timestamp, request, status_code, bytes]"
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: "ApacheAccessLogs"
+          MetricName: "IKKomEraanLowSeverity"
+    DependsOn: ApacheAcccessLogGroup
+
+  HighSeverityMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: ApacheAccessLog
+      FilterPattern: "[ip, identity, user_id, timestamp, request, status_code, bytes]"
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: "ApacheAccessLogs"
+          MetricName: "IKKomEraanHighSeverity"
+    DependsOn: ApacheAcccessLogGroup
+
+  LowSeverityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm for /ik-kom-eraan?severity=low"
+      Namespace: "AWS/Logs"
+      MetricName: "IKKomEraanLowSeverityCount"
+      Dimensions:
+        - Name: "ApacheAccessLog"
+          Value: "APACHEACCESSLOG"
+      Statistic: "Sum"
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1  # Adjust as per your threshold requirement
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmActions:
+        - !Ref SecurityAlertsTopicARN
+
+  HighSeverityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm for /ik-kom-eraan?severity=high"
+      Namespace: "AWS/Logs"
+      MetricName: "IKKomEraanHighSeverityCount"
+      Dimensions:
+        - Name: "ApacheAccessLog"
+          Value: "APACHEACCESSLOG"
+      Statistic: "Sum"
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1  # Adjust as per your threshold requirement
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmActions:
+        - !Ref SecurityAlertsTopicARN
+        - !Ref CloudPlatformTeamAlertsTopicARN
