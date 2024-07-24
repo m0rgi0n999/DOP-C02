@@ -71,7 +71,7 @@ Resources:
       OKActions: []
       AlarmActions:
         - !Ref SecurityAlertsTopicARN
-        - !Ref CloudPlatformTeamAlertsTopicARN- arn:aws:sns:eu-west-1:862753365563:Opdracht-2-SecurityStack-NP8EWS9BKHU4-CloudPlatformTeamAlertsTopic-1VEVsZwCiT1k
+        - !Ref CloudPlatformTeamAlertsTopicARN
       InsufficientDataActions: []
       MetricName: IKKomEraanHighSeverity
       Namespace: ApacheAccessLogs
