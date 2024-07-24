@@ -41,9 +41,9 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: low severity found
-        AlarmDescription: |-
-          # Attention !!
-          A low severity action has been recorded
+      AlarmDescription: |-
+        # Attention !!
+        A low severity action has been recorded
       ActionsEnabled: true
       OKActions: []
       AlarmActions:
