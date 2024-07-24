@@ -40,34 +40,46 @@ Resources:
   LowSeverityAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Alarm for /ik-kom-eraan?severity=low"
-      Namespace: "AWS/Logs"
-      MetricName: "IKKomEraanLowSeverityCount"
-      Dimensions:
-        - Name: "ApacheAccessLog"
-          Value: "APACHEACCESSLOG"
-      Statistic: "Sum"
-      Period: 300  # 5 minutes
-      EvaluationPeriods: 1
-      Threshold: 1  # Adjust as per your threshold requirement
-      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmName: low severity found
+        AlarmDescription: |-
+          # Attention !!
+          A low severity action has been recorded
+      ActionsEnabled: true
+      OKActions: []
       AlarmActions:
         - !Ref SecurityAlertsTopicARN
+      InsufficientDataActions: []
+      MetricName: IKKomEraanLowSeverity
+      Namespace: ApacheAccessLogs
+      Statistic: Sum
+      Dimensions: []
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: missing
 
   HighSeverityAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Alarm for /ik-kom-eraan?severity=high"
-      Namespace: "AWS/Logs"
-      MetricName: "IKKomEraanHighSeverityCount"
-      Dimensions:
-        - Name: "ApacheAccessLog"
-          Value: "APACHEACCESSLOG"
-      Statistic: "Sum"
-      Period: 300  # 5 minutes
-      EvaluationPeriods: 1
-      Threshold: 1  # Adjust as per your threshold requirement
-      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmName: Red Alert
+      AlarmDescription: |-
+        # !! RED ALERT !! RED ALERT !!
+        Intrusion Detected!
+      ActionsEnabled: true
+      OKActions: []
       AlarmActions:
         - !Ref SecurityAlertsTopicARN
-        - !Ref CloudPlatformTeamAlertsTopicARN
+        - !Ref CloudPlatformTeamAlertsTopicARN- arn:aws:sns:eu-west-1:862753365563:Opdracht-2-SecurityStack-NP8EWS9BKHU4-CloudPlatformTeamAlertsTopic-1VEVsZwCiT1k
+      InsufficientDataActions: []
+      MetricName: IKKomEraanHighSeverity
+      Namespace: ApacheAccessLogs
+      Statistic: Sum
+      Dimensions: []
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: missing
