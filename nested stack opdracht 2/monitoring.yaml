@@ -19,7 +19,7 @@ Resources:
     Type: AWS::Logs::MetricFilter
     Properties:
       LogGroupName: ApacheAccessLog
-      FilterPattern: "[ip, identity, user_id, timestamp, request, status_code, bytes]"
+      FilterPattern: "%severity=low%"
       MetricTransformations:
         - MetricValue: "1"
           MetricNamespace: "ApacheAccessLogs"
@@ -30,7 +30,7 @@ Resources:
     Type: AWS::Logs::MetricFilter
     Properties:
       LogGroupName: ApacheAccessLog
-      FilterPattern: "[ip, identity, user_id, timestamp, request, status_code, bytes]"
+      FilterPattern: "%severity=high%"
       MetricTransformations:
         - MetricValue: "1"
           MetricNamespace: "ApacheAccessLogs"
