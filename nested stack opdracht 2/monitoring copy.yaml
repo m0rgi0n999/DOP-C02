@@ -70,9 +70,8 @@ Resources:
       ActionsEnabled: true
       OKActions: []
       AlarmActions:
-      #  - !Ref SecurityAlertsTopicARN
-      #  - !Ref CloudPlatformTeamAlertsTopicARN
-         - !Ref HighSeverityAlarmFunction
+        - !Ref SecurityAlertsTopicARN
+        - !Ref CloudPlatformTeamAlertsTopicARN
       InsufficientDataActions: []
       MetricName: IKKomEraanHighSeverity
       Namespace: ApacheAccessLogs
